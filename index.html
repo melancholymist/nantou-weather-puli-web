@@ -1,178 +1,430 @@
 <!DOCTYPE html>
-<html lang="zh-Hant-TW">
+<html lang="zh-Hant">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>南投埔里 3 天天氣小幫手</title>
+  <title>埔里未來3天天氣</title>
   <style>
-    body {
+    * , *::before, *::after {
+      box-sizing: border-box;
+    }
+
+    :root {
+      --card-bg: rgba(255, 255, 255, 0.16);
+      --card-border: rgba(255, 255, 255, 0.7);
+      --text-main: #f7fbff;
+      --text-sub: #d8e6ff;
+      --accent: #ffe08a;
+      --shadow-soft: 0 18px 45px rgba(0, 0, 0, 0.35);
+    }
+
+    html, body {
       margin: 0;
+      padding: 0;
+      min-height: 100%;
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background-color: #f5f5f5;
-      color: #222;
+      color: var(--text-main);
+      overflow-x: hidden;
     }
 
-    .page {
-      max-width: 1440px;
+    body {
+      min-height: 100vh;
+    }
+
+    .bg-layer {
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      /* 這裡用你指定的 Unsplash 圖片＋比較薄的霧層 */
+      background-image:
+        linear-gradient(135deg, rgba(2, 10, 25, 0.28), rgba(12, 120, 186, 0.18)),
+        url("https://images.unsplash.com/photo-1662381523885-914182622e12?auto=format&fit=crop&w=1600&q=80");
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+    }
+
+    .page-wrapper {
+      max-width: 1200px;
       margin: 0 auto;
-      padding: 16px;
+      padding: 24px 16px 36px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
     }
 
-    h1 {
-      font-size: 24px;
-      margin-bottom: 8px;
+    .page-header {
+      text-align: center;
+      margin-bottom: 24px;
+      color: #f4f7fb;
+      text-shadow: 0 1px 10px rgba(0, 0, 0, 0.65);
     }
 
-    .subtitle {
-      font-size: 16px;
-      margin-bottom: 16px;
+    .page-title,
+    .page-subtitle {
+      opacity: 0;
+      transform: translateY(-24px);
+    }
+
+    .page-title {
+      font-size: 2.4rem;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      margin: 10px 0 8px;
+      animation: headerDrop 0.8s ease-out forwards;
+    }
+
+    .page-subtitle {
+      font-size: 1.4rem;
+      margin: 0;
+      opacity: 0.96;
+      animation: headerDrop 0.8s ease-out forwards;
+      animation-delay: 0.3s;
+    }
+
+    .weather-main {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+    }
+
+    .weather-window {
+      width: 100%;
+      max-width: 900px;
+      margin: 0 auto;
     }
 
     .cards {
       display: flex;
       flex-direction: column;
-      gap: 16px;
+      align-items: stretch;
+      gap: 18px;
     }
 
-    .card {
-      background-color: #fff;
-      border-radius: 12px;
-      padding: 16px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    .weather-card {
+      position: relative;
+      padding: 20px 22px 22px;
+      border-radius: 20px;
+      background: var(--card-bg); /* 更透明一點的白色玻璃 */
+      border: 1px solid var(--card-border);
+      box-shadow: var(--shadow-soft);
+      backdrop-filter: blur(22px);
+      -webkit-backdrop-filter: blur(22px);
+      color: var(--text-main);
+      overflow: hidden;
+    }
+
+    .weather-card::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      /* 上面偏亮、下面偏藍，保留風景＋有玻璃光感 */
+      background:
+        radial-gradient(circle at 0% 0%, rgba(255, 255, 255, 0.55), transparent 65%),
+        radial-gradient(circle at 100% 100%, rgba(20, 54, 104, 0.45), transparent 60%);
+      opacity: 0.95;
+      pointer-events: none;
+      mix-blend-mode: screen;
+    }
+
+    .weather-card-content {
+      position: relative;
+      z-index: 1;
     }
 
     .card-date {
-      font-size: 18px;
-      font-weight: bold;
-      margin-bottom: 8px;
+      font-size: 1.7rem;
+      font-weight: 800;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+      color: #ffffff;
+      text-shadow: 0 0 8px rgba(0, 0, 0, 0.55);
     }
 
     .card-summary {
-      font-size: 20px;
-      font-weight: bold;
-      margin-bottom: 8px;
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 12px;
+      color: var(--text-sub);
+      text-shadow: 0 0 6px rgba(0, 0, 0, 0.5);
     }
 
     .card-row {
-      font-size: 18px;
-      margin-bottom: 4px;
+      font-size: 1.4rem;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+      color: #f8fbff;
+      font-weight: 600;
+      text-shadow: 0 0 6px rgba(0, 0, 0, 0.55);
     }
 
-    .card-row span.label {
-      font-weight: bold;
+    .card-row .label {
+      font-weight: 800;
+      color: var(--accent);
+      white-space: nowrap;
+      text-shadow: 0 0 6px rgba(0, 0, 0, 0.7);
     }
 
     .card-advice {
-      margin-top: 8px;
-      font-size: 16px;
-      line-height: 1.5;
+      font-size: 1.4rem;
+      margin-top: 12px;
+      line-height: 1.8;
+      color: #ffffff;
+      font-weight: 600;
+      text-shadow: 0 0 7px rgba(0, 0, 0, 0.7);
     }
 
-    /* 桌機版：寬度足夠時三欄排列 */
-    @media (min-width: 768px) {
-      .cards {
-        flex-direction: row;
+    .error-message {
+      margin-top: 18px;
+      padding: 14px 16px;
+      border-radius: 14px;
+      font-size: 1.2rem;
+      text-align: center;
+      background: rgba(0, 0, 0, 0.55);
+      color: #ffe6e6;
+      border: 1px solid rgba(255, 255, 255, 0.6);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+
+    /* 卡片進場動畫 */
+    .weather-card.is-hidden {
+      opacity: 0;
+      transform: translateY(16px) scale(0.98);
+    }
+
+    .weather-card.is-visible {
+      animation: fadeUpCard 0.6s ease-out forwards;
+    }
+
+    /* 文字逐段落下 */
+    .text-animate {
+      opacity: 0;
+      transform: translateY(-6px);
+    }
+
+    .weather-card.is-visible .text-animate {
+      /* 一般文字：只做一次落下漸顯 */
+      animation: fadeDropText 0.55s ease-out forwards;
+    }
+
+    /* 日期：同時跑「落下」＋「呼吸」，呼吸的 delay 用變數控制（每張不一樣） */
+    .weather-card.is-visible .card-date.date-breathing {
+      animation:
+        fadeDropText 0.55s ease-out forwards,
+        breathingDate 3.6s ease-in-out var(--breath-delay, 0s) infinite;
+    }
+
+    .date-breathing {
+      transform-origin: center;
+    }
+
+    @keyframes headerDrop {
+      0% {
+        opacity: 0;
+        transform: translateY(-28px);
       }
-      .card {
-        flex: 1;
+      100% {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes fadeUpCard {
+      0% {
+        opacity: 0;
+        transform: translateY(18px) scale(0.96);
+      }
+      100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    @keyframes fadeDropText {
+      0% {
+        opacity: 0;
+        transform: translateY(-6px);
+      }
+      100% {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes breathingDate {
+      0%, 100% {
+        transform: translateY(0) scale(1);
+        letter-spacing: 0.14em;
+        text-shadow: 0 0 3px rgba(0, 0, 0, 0.45);
+      }
+      50% {
+        /* 超級微小的浮動，幾乎感覺不到「跳」，只有呼吸感 */
+        transform: translateY(-0.4px) scale(1.012);
+        letter-spacing: 0.145em;
+        text-shadow: 0 0 4px rgba(255, 255, 255, 0.35);
+      }
+    }
+
+    /* RWD */
+    @media (min-width: 480px) {
+      .page-wrapper {
+        padding: 28px 18px 44px;
+      }
+    }
+
+    @media (min-width: 768px) {
+      .page-wrapper {
+        padding: 32px 24px 52px;
+      }
+
+      .cards {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 22px;
+      }
+    }
+
+    @media (min-width: 1200px) {
+      .page-wrapper {
+        padding: 36px 24px 60px;
+      }
+
+      .cards {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 24px;
       }
     }
   </style>
 </head>
 <body>
-  <div class="page">
-    <h1>南投縣埔里鎮 未來 3 天天氣</h1>
-    <div class="subtitle">
-      本頁資訊僅供一般生活提醒，如有不適請依醫師建議為主。
-    </div>
+  <div class="bg-layer"></div>
+  <div class="page-wrapper">
+    <header class="page-header">
+      <h1 class="page-title">埔里未來3天天氣</h1>
+      <p class="page-subtitle">想您每天都好，從天氣開始照顧自己</p>
+    </header>
 
-    <div class="cards" id="cards">
-      <!-- JavaScript 之後會在這裡幫你塞卡片 -->
-    </div>
-
-    <div id="error-message" style="display:none; margin-top:12px; font-size:14px; color:#b00020;">
-      目前氣象資料暫時無法讀取，請稍後再試。
-    </div>
+    <main class="weather-main">
+      <section class="weather-window">
+        <div class="cards" id="cards">
+          <p style="font-size:0.98rem; color:#e4edf7;">資料載入中…</p>
+        </div>
+        <p id="error-message" class="error-message" hidden>
+          目前氣象資料暫時無法讀取，請稍後再試一次，或請家人協助查看。
+        </p>
+      </section>
+    </main>
   </div>
 
   <script>
-    // 這個網址就是你本機的後端 API 位址
     const API_URL = "https://puli.zeabur.app/api/weather/puli";
 
-    // 頁面載入後就執行
-    loadWeather();
+    document.addEventListener("DOMContentLoaded", function () {
+      loadWeather();
+    });
 
-    // 1️⃣ 主要入口：負責去後端拿資料
     async function loadWeather() {
       const cardsEl = document.getElementById("cards");
       const errorEl = document.getElementById("error-message");
 
-      console.log("👉 loadWeather 被呼叫了");
-
-      // 先清空畫面，顯示「載入中」
-      cardsEl.innerHTML = "<p style='font-size:16px;'>資料載入中…</p>";
-      errorEl.style.display = "none";
+      // 初始提示
+      cardsEl.innerHTML = "<p style='font-size:1rem; color:#f4f7fb;'>資料載入中…</p>";
+      errorEl.hidden = true;
 
       try {
-        console.log("👉 準備呼叫 API：", API_URL);
         const res = await fetch(API_URL);
-        console.log("👉 收到回應，status =", res.status);
-
         if (!res.ok) {
           throw new Error("伺服器回應錯誤，狀態碼：" + res.status);
         }
 
         const data = await res.json();
-        console.log("👉 解析後的 JSON：", data);
-
         renderWeather(data);
       } catch (err) {
         console.error("❌ 呼叫 API 發生錯誤：", err);
         cardsEl.innerHTML = "";
-        errorEl.style.display = "block";
+        errorEl.hidden = false;
       }
     }
 
-    // 2️⃣ 負責把拿到的資料，變成卡片
     function renderWeather(data) {
       const cardsEl = document.getElementById("cards");
-      cardsEl.innerHTML = ""; // 清空舊內容
+      cardsEl.innerHTML = "";
 
-      console.log("👉 準備渲染資料：", data);
-
-      if (!data || !Array.isArray(data.days)) {
-        cardsEl.innerHTML = "<p style='font-size:16px;'>目前沒有可顯示的天氣資料。</p>";
+      if (!data || !Array.isArray(data.days) || data.days.length === 0) {
+        cardsEl.innerHTML = "<p style='font-size:1rem; color:#f4f7fb;'>目前沒有可顯示的天氣資料。</p>";
         return;
       }
 
-      data.days.forEach(function (day) {
-        const card = document.createElement("div");
-        card.className = "card";
+      const days = data.days.slice(0, 3);
 
+      // 建立 3 張卡片
+      days.forEach((day, index) => {
+        const card = document.createElement("article");
+        card.className = "weather-card is-hidden";
+
+        const delayBase = index * 250;
         const dateText = formatDate(day.date);
 
         card.innerHTML = `
-          <div class="card-date">${dateText}</div>
-          <div class="card-summary">${day.summary}</div>
-          <div class="card-row"><span class="label">溫度：</span>${day.tempMin}°C – ${day.tempMax}°C</div>
-          <div class="card-row"><span class="label">降雨機率：</span>${day.rainProb}%</div>
-          <div class="card-row"><span class="label">濕度：</span>約 ${day.humidity}%</div>
-          <div class="card-advice">
-            建議：${day.advice}
+          <div class="weather-card-content">
+            <div class="card-date text-animate">${dateText}</div>
+            <div class="card-summary text-animate" style="animation-delay: ${delayBase + 150}ms">
+              ${day.summary || ""}
+            </div>
+            <div class="card-row text-animate" style="animation-delay: ${delayBase + 250}ms">
+              <span class="label">溫度：</span>${day.tempMin}°C – ${day.tempMax}°C
+            </div>
+            <div class="card-row text-animate" style="animation-delay: ${delayBase + 350}ms">
+              <span class="label">降雨：</span>${day.rainProb}%
+            </div>
+            <div class="card-row text-animate" style="animation-delay: ${delayBase + 450}ms">
+              <span class="label">濕度：</span>約 ${day.humidity}%
+            </div>
+            <p class="card-advice text-animate" style="animation-delay: ${delayBase + 600}ms">
+              建議：${day.advice || "依照天氣調整外出時間，注意保暖與補充水分。"}
+            </p>
           </div>
         `;
 
         cardsEl.appendChild(card);
       });
+
+      const cardNodes = document.querySelectorAll(".weather-card");
+
+      // 一張一張卡片浮現，日期呼吸有明顯時間差
+      cardNodes.forEach((card, index) => {
+        const cardDelay = index * 250; // 卡片依序落下
+
+        setTimeout(() => {
+          // 卡片進場
+          card.classList.remove("is-hidden");
+          card.classList.add("is-visible");
+
+          const dateEl = card.querySelector(".card-date");
+          if (dateEl) {
+            // 先讓日期可以跑呼吸動畫
+            dateEl.classList.add("date-breathing");
+
+            // 每張卡片的日期有不同的呼吸起始時間（phase）
+            // 呼吸總週期 3.6s → 相差 1/3 週期，三張剛好錯開
+            const phaseDelaySeconds = index * 1.2;
+            dateEl.style.setProperty("--breath-delay", `${phaseDelaySeconds}s`);
+          }
+        }, cardDelay);
+      });
     }
 
-    // 3️⃣ 把 2025-11-29 這種格式，變成 11/29（六）
     function formatDate(dateStr) {
       if (!dateStr) return "";
 
       const date = new Date(dateStr);
       if (isNaN(date.getTime())) {
-        return dateStr; // 如果轉失敗，就原樣顯示
+        return dateStr;
       }
 
       const month = date.getMonth() + 1;
@@ -183,6 +435,6 @@
       return `${month}/${day}（${weekday}）`;
     }
   </script>
+
 </body>
 </html>
-
